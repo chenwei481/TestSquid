@@ -1,0 +1,12 @@
+platformName: Android
+platformVersion: 5.1.1
+deviceName: 127.0.0.1:5554
+app: MOMOmomo_5396.apk
+noReset: False
+appPackage: com.immomo.momo
+appActivity: com.immomo.momo.android.activity.WelcomeActivity
+ip: 127.0.0.1
+port: 4723
+unicodeKeyboard: True
+resetKeyboard: True
+automationName: Uiautomator2
