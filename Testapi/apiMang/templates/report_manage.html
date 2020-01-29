@@ -1,0 +1,83 @@
+<html lang="zh-CN">
+<head>
+    {% load bootstrap3 %}
+    {% bootstrap_css %}
+    {% bootstrap_javascript %}
+    <title>测试报告管理</title>
+    }
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="/project_manage/">测试报告管理</a>
+        </div>
+
+        <div id="navbar" class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li><a href="/api_manage/">用例</a></li>
+            <li class="active"><a href="#about">报告</a></li>
+            <li><a href="/project_manage/">项目</a></li>
+          </ul>
+
+          <ul class="nav navbar-nav navbar-right">
+           <li><a href="#">{{user}}</a></li>
+           <li><a href="/logout/">退出</a></li>
+         </ul>
+
+        </div><!--/.nav-collapse -->
+      </div>
+    </nav>
+
+     <!--列表显示 -->
+
+    <div class="row" style="padding-top: 85px;">
+        <div class="col-md-6">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>id</th>
+                <th>通过数</th>
+                <th>失败数</th>
+                <th>错误数</th>
+                  <th>测试时间</th>
+                  <th>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for report in reports %}
+                <tr>
+                  <td>{{report.id }}</td>
+                  <td>{{report.pass_num }}</td>
+                  <td>{{report.fail_num }}</td>
+                  <td>{{ report.error_num }}</td>
+                  <td>{{report.test_time}}</td>
+                  <td>{{report.status}}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+
+          </table>
+        </div>
+      </div>
+<!-- 列表分页器 -->
+    <div class="pagination">
+      <span class="step-links">
+        {% if reports.has_previous %}
+          <a href="?phone={{ phone }}&page={{ reports.previous_page_number }}">previous</a>
+        {% endif %}
+          <span class="current">
+            Page {{ reports.number }} of {{ reports.paginator.num_pages }}.
+          </span>
+        {% if reports.has_next %}
+          {% if phone %}
+            <a href="?phone={{ phone }}&page={{ reports.next_page_number }}">next</a>
+          {% else %}
+           <a href="?page={{ reports.next_page_number }}">next</a>
+          {% endif %}
+        {% endif %}
+      </span>
+    </div>
+</body>
+</html>
