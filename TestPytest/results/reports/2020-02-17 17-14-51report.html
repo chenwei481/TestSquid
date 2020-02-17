@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var collapsed = get_query_parameter('collapsed') || 'Passed';
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+
+function get_query_parameter(name) {
+    var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    sort_column(find('.initial-sort'));
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+};
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+
+        if (key_a == key_b) return 0;
+
+        if (reversed) {
+            return (key_a < key_b ? 1 : -1);
+        } else {
+            return (key_a > key_b ? 1 : -1);
+        }
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <h1>2020-02-17 17-14-51report.html</h1>
+    <p>Report generated on 17-Feb-2020 at 17:14:54 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v2.0.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>C:\Program Files\Java\jdk1.8.0_162</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{&apos;pytest&apos;: &apos;5.3.5&apos;, &apos;py&apos;: &apos;1.8.1&apos;, &apos;pluggy&apos;: &apos;0.13.1&apos;}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-7-6.1.7601-SP1</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{&apos;cov&apos;: &apos;2.8.1&apos;, &apos;forked&apos;: &apos;1.1.3&apos;, &apos;html&apos;: &apos;2.0.1&apos;, &apos;metadata&apos;: &apos;1.8.0&apos;, &apos;randomly&apos;: &apos;3.2.1&apos;, &apos;xdist&apos;: &apos;1.31.0&apos;}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.6.4</td></tr></table>
+    <h2>Summary</h2>
+    <p>3 tests ran in 1.91 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">3 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcase/test_one.py::test_one_2</td>
+          <td class="col-duration">0.95</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>[2020-02-17 17:14:53,196] - logger.py] - INFO: -----开始执行用例-----
+<br/> -------------------------------Captured log setup------------------------------- <br/>INFO     root:logger.py:36 -----开始执行用例-----<br/> ------------------------------Captured stdout call------------------------------ <br/>&quot;{\&quot;status\&quot;:\&quot;1\&quot;,\&quot;data\&quot;:{\&quot;adcode\&quot;:\&quot;320583\&quot;,\&quot;areacode\&quot;:\&quot;0512\&quot;,\&quot;city\&quot;:\&quot;苏州市\&quot;,\&quot;cityadcode\&quot;:\&quot;320500\&quot;,\&quot;code\&quot;:\&quot;1\&quot;,\&quot;country\&quot;:\&quot;中国\&quot;,\&quot;countrycode\&quot;:\&quot;CN\&quot;,\&quot;cross_list\&quot;:[{\&quot;distance\&quot;:\&quot;149.978\&quot;,\&quot;level\&quot;:\&quot;45000, 45000\&quot;,\&quot;latitude\&quot;:\&quot;31.315575\&quot;,\&quot;crossid\&quot;:\&quot;021H51F0090093035--021H51F009009851\&quot;,\&quot;name\&quot;:\&quot;联谊路--绿溪路\&quot;,\&quot;width\&quot;:\&quot;8, 12\&quot;,\&quot;weight\&quot;:\&quot;120\&quot;,\&quot;direction\&quot;:\&quot;West\&quot;,\&quot;longitude\&quot;:\&quot;121.0508344\&quot;},{\&quot;distance\&quot;:\&quot;257.782\&quot;,\&quot;level\&quot;:\&quot;45000, 45000\&quot;,\&quot;latitude\&quot;:\&quot;31.31554917\&quot;,\&quot;crossid\&quot;:\&quot;021H51F0090094608--021H51F009009612276\&quot;,\&quot;name\&quot;:\&quot;陆家浜北路--教堂路\&quot;,\&quot;width\&quot;:\&quot;8, 8\&quot;,\&quot;weight\&quot;:\&quot;120\&quot;,\&quot;direction\&quot;:\&quot;East\&quot;,\&quot;longitude\&quot;:\&quot;121.0465428\&quot;},{\&quot;distance\&quot;:\&quot;272.251\&quot;,\&quot;level\&quot;:\&quot;45000, 45000\&quot;,\&quot;latitude\&quot;:\&quot;31.31330972\&quot;,\&quot;crossid\&quot;:\&quot;021H51F0090093125--021H51F009009851\&quot;,\&quot;name\&quot;:\&quot;陆家浜南路--绿溪路\&quot;,\&quot;width\&quot;:\&quot;8, 12\&quot;,\&quot;weight\&quot;:\&quot;120\&quot;,\&quot;direction\&quot;:\&quot;NorthEast\&quot;,\&quot;longitude\&quot;:\&quot;121.0482142\&quot;}],\&quot;desc\&quot;:\&quot;江苏省,苏州市,昆山市\&quot;,\&quot;district\&quot;:\&quot;昆山市\&quot;,\&quot;districtadcode\&quot;:\&quot;320583\&quot;,\&quot;hn\&quot;:\&quot;20号\&quot;,\&quot;message\&quot;:\&quot;Successful.\&quot;,\&quot;poi_list\&quot;:[{\&quot;parent\&quot;:\&quot;\&quot;,\&quot;address\&quot;:\&quot;陆家镇镇北路21号\&quot;,\&quot;distance\&quot;:\&quot;159\&quot;,\&quot;latitude\&quot;:\&quot;31.315498\&quot;,\&quot;weight\&quot;:\&quot;0.0\&quot;,\&quot;type\&quot;:\&quot;医疗保健服务;综合医院;综合医院\&quot;,\&quot;typecode\&quot;:\&quot;090100\&quot;,\&quot;f_nona\&quot;:\&quot;\&quot;,\&quot;childtype\&quot;:\&quot;\&quot;,\&quot;name\&quot;:\&quot;昆山市陆家人民医院\&quot;,\&quot;tel\&quot;:\&quot;0512-57671209;0512-57879719\&quot;,\&quot;towards_angle\&quot;:\&quot;\&quot;,\&quot;poiid\&quot;:\&quot;B020016BMR\&quot;,\&quot;entrances\&quot;:[{\&quot;latitude\&quot;:\&quot;31.314934\&quot;,\&quot;longitude\&quot;:\&quot;121.047102\&quot;}],\&quot;end_poi_extension\&quot;:\&quot;2\&quot;,\&quot;direction\&quot;:\&quot;West\&quot;,\&quot;longitude\&quot;:\&quot;121.047582\&quot;},{\&quot;parent\&quot;:\&quot;\&quot;,\&quot;address\&quot;:\&quot;菉溪路22号\&quot;,\&quot;distance\&quot;:\&quot;128\&quot;,\&quot;latitude\&quot;:\&quot;31.314621\&quot;,\&quot;weight\&quot;:\&quot;0.0\&quot;,\&quot;type\&quot;:\&quot;政府机构及社会团体;政府机关;乡镇级政府及事业单位\&quot;,\&quot;typecode\&quot;:\&quot;130105\&quot;,\&quot;f_nona\&quot;:\&quot;\&quot;,\&quot;childtype\&quot;:\&quot;\&quot;,\&quot;name\&quot;:\&quot;陆家镇人民政府\&quot;,\&quot;tel\&quot;:\&quot;0512-57671003\&quot;,\&quot;towards_angle\&quot;:\&quot;153.10\&quot;,\&quot;poiid\&quot;:\&quot;B020007YBU\&quot;,\&quot;entrances\&quot;:[{\&quot;latitude\&quot;:\&quot;31.314413\&quot;,\&quot;longitude\&quot;:\&quot;121.048453\&quot;}],\&quot;end_poi_extension\&quot;:\&quot;2\&quot;,\&quot;direction\&quot;:\&quot;SouthWest\&quot;,\&quot;longitude\&quot;:\&quot;121.048525\&quot;},{\&quot;parent\&quot;:\&quot;\&quot;,\&quot;address\&quot;:\&quot;菉溪路22号\&quot;,\&quot;distance\&quot;:\&quot;128\&quot;,\&quot;latitude\&quot;:\&quot;31.314620\&quot;,\&quot;weight\&quot;:\&quot;0.0\&quot;,\&quot;type\&quot;:\&quot;政府机构及社会团体;政府机关;乡镇级政府及事业单位\&quot;,\&quot;typecode\&quot;:\&quot;130105\&quot;,\&quot;f_nona\&quot;:\&quot;\&quot;,\&quot;childtype\&quot;:\&quot;\&quot;,\&quot;name\&quot;:\&quot;中共昆山市陆家镇委员会\&quot;,\&quot;tel\&quot;:\&quot;\&quot;,\&quot;towards_angle\&quot;:\&quot;153.20\&quot;,\&quot;poiid\&quot;:\&quot;B020008HW1\&quot;,\&quot;end_poi_extension\&quot;:\&quot;2\&quot;,\&quot;direction\&quot;:\&quot;SouthWest\&quot;,\&quot;longitude\&quot;:\&quot;121.048524\&quot;},{\&quot;parent\&quot;:\&quot;\&quot;,\&quot;address\&quot;:\&quot;菉溪路22号\&quot;,\&quot;distance\&quot;:\&quot;139\&quot;,\&quot;latitude\&quot;:\&quot;31.314539\&quot;,\&quot;weight\&quot;:\&quot;0.0\&quot;,\&quot;type\&quot;:\&quot;政府机构及社会团体;政府机关;乡镇级政府及事业单位\&quot;,\&quot;typecode\&quot;:\&quot;130105\&quot;,\&quot;f_nona\&quot;:\&quot;\&quot;,\&quot;childtype\&quot;:\&quot;\&quot;,\&quot;name\&quot;:\&quot;陆家镇人民代表大会\&quot;,\&quot;tel\&quot;:\&quot;\&quot;,\&quot;towards_angle\&quot;:\&quot;153.20\&quot;,\&quot;poiid\&quot;:\&quot;B020007YBT\&quot;,\&quot;end_poi_extension\&quot;:\&quot;2\&quot;,\&quot;direction\&quot;:\&quot;SouthWest\&quot;,\&quot;longitude\&quot;:\&quot;121.048458\&quot;},{\&quot;parent\&quot;:\&quot;\&quot;,\&quot;address\&quot;:\&quot;菉溪路22号\&quot;,\&quot;distance\&quot;:\&quot;138\&quot;,\&quot;latitude\&quot;:\&quot;31.314547\&quot;,\&quot;weight\&quot;:\&quot;0.0\&quot;,\&quot;type\&quot;:\&quot;政府机构及社会团体;政府机关;乡镇级政府及事业单位\&quot;,\&quot;typecode\&quot;:\&quot;130105\&quot;,\&quot;f_nona\&quot;:\&quot;\&quot;,\&quot;childtype\&quot;:\&quot;\&quot;,\&quot;name\&quot;:\&quot;政协陆家镇工作委员会\&quot;,\&quot;tel\&quot;:\&quot;\&quot;,\&quot;towards_angle\&quot;:\&quot;153.20\&quot;,\&quot;poiid\&quot;:\&quot;B020016BUS\&quot;,\&quot;end_poi_extension\&quot;:\&quot;2\&quot;,\&quot;direction\&quot;:\&quot;SouthWest\&quot;,\&quot;longitude\&quot;:\&quot;121.048455\&quot;}],\&quot;pos\&quot;:\&quot;在陆家镇人民政府附近, 在绿溪路旁边, 靠近联谊路--绿溪路路口\&quot;,\&quot;province\&quot;:\&quot;江苏省\&quot;,\&quot;provinceadcode\&quot;:\&quot;320000\&quot;,\&quot;result\&quot;:\&quot;true\&quot;,\&quot;road_list\&quot;:[{\&quot;distance\&quot;:\&quot;79\&quot;,\&quot;level\&quot;:\&quot;5\&quot;,\&quot;latitude\&quot;:\&quot;31.315\&quot;,\&quot;name\&quot;:\&quot;绿溪路\&quot;,\&quot;width\&quot;:\&quot;12\&quot;,\&quot;roadid\&quot;:\&quot;021H51F009009851\&quot;,\&quot;direction\&quot;:\&quot;NorthWest\&quot;,\&quot;longitude\&quot;:\&quot;121.05\&quot;},{\&quot;distance\&quot;:\&quot;141\&quot;,\&quot;level\&quot;:\&quot;5\&quot;,\&quot;latitude\&quot;:\&quot;31.3163\&quot;,\&quot;name\&quot;:\&quot;教堂路\&quot;,\&quot;width\&quot;:\&quot;8\&quot;,\&quot;roadid\&quot;:\&quot;021H51F009009612276\&quot;,\&quot;direction\&quot;:\&quot;SouthEast\&quot;,\&quot;longitude\&quot;:\&quot;121.048\&quot;},{\&quot;distance\&quot;:\&quot;192\&quot;,\&quot;level\&quot;:\&quot;5\&quot;,\&quot;latitude\&quot;:\&quot;31.3158\&quot;,\&quot;name\&quot;:\&quot;联谊路\&quot;,\&quot;width\&quot;:\&quot;8\&quot;,\&quot;roadid\&quot;:\&quot;021H51F0090093035\&quot;,\&quot;direction\&quot;:\&quot;West\&quot;,\&quot;longitude\&quot;:\&quot;121.051\&quot;}],\&quot;sea_area\&quot;:{\&quot;name\&quot;:\&quot;\&quot;,\&quot;adcode\&quot;:\&quot;\&quot;},\&quot;tel\&quot;:\&quot;0512\&quot;,\&quot;timestamp\&quot;:\&quot;1581931045252\&quot;,\&quot;version\&quot;:\&quot;1.0\&quot;}}&quot;
+<br/> ------------------------------Captured stderr call------------------------------ <br/>[2020-02-17 17:14:53,198] - logger.py] - INFO: -----开始执行第一个文件，第二个用例-----
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:logger.py:36 -----开始执行第一个文件，第二个用例-----
+DEBUG    urllib3.connectionpool:connectionpool.py:824 Starting new HTTPS connection (1): ditu.amap.com
+DEBUG    urllib3.connectionpool:connectionpool.py:396 https://ditu.amap.com:443 &quot;GET /service/regeo?longitude=121.04925573429551&amp;latitude=31.315590522490712 HTTP/1.1&quot; 200 None<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcase/test_one.py::test_one_1</td>
+          <td class="col-duration">0.11</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>[2020-02-17 17:14:54,161] - logger.py] - INFO: -----开始执行用例-----
+<br/> -------------------------------Captured log setup------------------------------- <br/>INFO     root:logger.py:36 -----开始执行用例-----<br/> ------------------------------Captured stdout call------------------------------ <br/>&quot;{\&quot;message\&quot;:\&quot;ok\&quot;,\&quot;nu\&quot;:\&quot;11111111111\&quot;,\&quot;ischeck\&quot;:\&quot;1\&quot;,\&quot;com\&quot;:\&quot;yuantong\&quot;,\&quot;status\&quot;:\&quot;200\&quot;,\&quot;condition\&quot;:\&quot;F00\&quot;,\&quot;state\&quot;:\&quot;3\&quot;,\&quot;data\&quot;:[{\&quot;time\&quot;:\&quot;2020-01-29 17:17:25\&quot;,\&quot;context\&quot;:\&quot;查无结果\&quot;,\&quot;ftime\&quot;:\&quot;2020-01-29 17:17:25\&quot;}]}&quot;
+<br/> ------------------------------Captured stderr call------------------------------ <br/>[2020-02-17 17:14:54,162] - logger.py] - INFO: -----开始执行第一个文件，第一个用例-----
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:logger.py:36 -----开始执行第一个文件，第一个用例-----
+DEBUG    urllib3.connectionpool:connectionpool.py:208 Starting new HTTP connection (1): www.kuaidi100.com
+DEBUG    urllib3.connectionpool:connectionpool.py:396 http://www.kuaidi100.com:80 &quot;GET /query?type=yuantong&amp;postid=11111111111 HTTP/1.1&quot; 200 None<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcase/test_two.py::test_two_1</td>
+          <td class="col-duration">0.31</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>[2020-02-17 17:14:54,272] - logger.py] - INFO: -----开始执行用例-----
+<br/> -------------------------------Captured log setup------------------------------- <br/>INFO     root:logger.py:36 -----开始执行用例-----<br/> ------------------------------Captured stdout call------------------------------ <br/>&quot;\r\ncb({\&quot;result\&quot;:[[\&quot;卫衣男\&quot;,\&quot;566386.0050462151\&quot;],[\&quot;卫衣2019新款女\&quot;,\&quot;597884.6126176019\&quot;],[\&quot;卫衣加厚加绒女\&quot;,\&quot;477771.8106703697\&quot;],[\&quot;卫衣女宽松韩版\&quot;,\&quot;365681.0644604071\&quot;],[\&quot;卫衣女2019新款潮\&quot;,\&quot;583941.5670882951\&quot;],[\&quot;卫衣女潮ins\&quot;,\&quot;197172.75410286378\&quot;],[\&quot;卫衣男潮\&quot;,\&quot;503986.1634363528\&quot;],[\&quot;卫衣男连帽\&quot;,\&quot;367227.6839663388\&quot;],[\&quot;卫衣女秋冬\&quot;,\&quot;690408.1124301482\&quot;],[\&quot;卫衣2019新款\&quot;,\&quot;691863.1136460333\&quot;]]})&quot;
+<br/> ------------------------------Captured stderr call------------------------------ <br/>[2020-02-17 17:14:54,274] - logger.py] - INFO: -----开始执行第二个文件，第一个用例-----
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:logger.py:36 -----开始执行第二个文件，第一个用例-----
+DEBUG    urllib3.connectionpool:connectionpool.py:824 Starting new HTTPS connection (1): suggest.taobao.com
+DEBUG    urllib3.connectionpool:connectionpool.py:396 https://suggest.taobao.com:443 &quot;GET /sug?code=utf-8&amp;q=%E5%8D%AB%E8%A1%A3&amp;callback=cb HTTP/1.1&quot; 200 None<br/></div></td></tr></tbody></table></body></html>

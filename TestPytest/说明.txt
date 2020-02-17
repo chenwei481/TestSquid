@@ -1,0 +1,20 @@
+基于pytest搭建的一个接口自动化测试框架
+
+目录：
+common	存放公共方法
+config	预留系统配置相关的数据
+results 
+	-assets  执行生成html报告时会自动生成的css文件
+	-logs    存放日志文件
+	-reports 存放测试报告
+	-xml     存放xml报告
+
+
+run	执行所有用例的测试
+testcase 存放测试用例 
+
+testdata
+	-excel 存放excel文件，包含请求地址，方法等
+	-yaml  存放接口请求的参数
+
+testview  存放测试逻辑（在此进行接口请求，数据替换等）
