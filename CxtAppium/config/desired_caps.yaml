@@ -1,0 +1,13 @@
+caixuetang:
+ platformName: Android
+ platformVersion: 5.1.1
+ deviceName: 127.0.0.1:5554
+ app: CaiXueTangPhone-dev-2020080200.apk
+ noReset: False
+ appPackage: com.caixuetang.app
+ appActivity: com.caixuetang.app.activities.LaunchActivity
+ ip: 127.0.0.1
+ port: 4723
+ unicodeKeyboard: True
+ resetKeyboard: True
+ automationName: Uiautomator2

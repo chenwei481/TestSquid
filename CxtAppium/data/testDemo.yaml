@@ -1,0 +1,8 @@
+- xpath: "会员中心"
+- id: view_top_bar_button_right
+  get: text
+- id: search_input_text
+  input: alibaba
+- id: name
+- id: current_price
+  get: text
